@@ -4,7 +4,7 @@
 # It should have the following files or folders
 # tongatriad2018.rdata; utahtriad2018.rdata; baryplot (folder); modelsim_plotdata.rdata; 
 # CodeBell2019C.r; simTestN1000_100c.rdata; restrifit2.rdata; www (folder)
-wkdir <- "/Users/pangai/Documents/Dropbox/ActiveProjects/Comparative Classification/PNAS"
+wkdir <- "your_working_directory"
 # ================================================
 # EVOLUTION OF OBJECT ASSOCIATIONS VIA SOCIAL COORDINATION
 # ================================================
