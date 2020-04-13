@@ -1,8 +1,6 @@
-# Metropolis-Hastings using C code to make it faster!
+# Metropolis-Hastings and other computations via C is faster!
+
 require(inline) # wrapper for C code
-
-
-
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # SIMULATION OF EVOLUTIONARY MODEL
 evolSimL <- "
@@ -60,11 +58,11 @@ LLtriad <- "
 				pr23 = upar * (1 - x12eq - x13eq ) + ( 1 - upar ) * inhersim[f1r + f1c*20];
 				// final log probabilities
 				// first and second object grouped
-				lpr12f = log( pr12 * ( 1 - pr13 ) * ( 1 - pr23) ); 				
+				lpr12f = log( pr12 );			
 				// first and third object grouped
-				lpr13f = log( pr13 * ( 1 - pr12 ) * ( 1 - pr23) );				
+				lpr13f = log( pr13 );			
 				// second and third object grouped
-				lpr23f = log( pr23 * ( 1 - pr13 ) * ( 1 - pr12) );
+				lpr23f = log( pr23 );
 				
 				if( y[i*60 + 0 * *nTri + j]==1 ){ 
 					*candLL = *candLL + lpr23f;	
@@ -115,91 +113,3 @@ calArraySearch <- signature( combin="integer", cmb1 ="integer", cmb2 ="integer",
 fitfns <- cfunction( list( funsimX = calevolSimL, funsearchTriArray=calArraySearch, funLL = LLt ), list( evolSimL, TriArrayFn, LLtriad ), language="C", convention=".C" )
 
 funLL <- fitfns[["funLL"]]
-
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-# METROPOLIS-HASTINGS FUNCTION
-MHast <- "
-  double accept,oldLL,cand[*npar],candLL=0.0;
-  // find log-likelihood of initial values
-  	for ( int j=0; j<*npar; j++){ // across all parameters
-  		out[j] = x[j]; // archive parameters
-  		if( j<6 ){
-  			cand[j] = exp( x[j] ); // transform initial values to candidate vector	
-  		}
-  		if( j>5){
-  			cand[j] = exp( x[j] ) / ( 1.0 + exp( x[j] ) ); // logit transformation of u
-  		}
-  	} 
-  // calculate log-likelihood					  
-  funLL(cand, y, alphacomb, nObj, combin, tricomb, inhersim, &candLL, N, nTri, debug);
-  oldLL = candLL; // log-likelihood of starting parameter values, the one to beat
-  aLL[0] = candLL; // archive the log likelihood
-  for (int i=1; i<*m; i++){	// loop to generate samples
-  	for ( int j=0; j<*npar; j++){ // across all parameters
-  		out[*npar * i + j] = out[*npar * (i-1) + j]; // each column is stored the samples, unless rejected
-  		// candidate parameter combination to be accepted/rejected
-  		if( j<23 ){
-  			cand[j] = exp( out[*npar * (i-1)+j] + jump[*npar * i + j] ); // transform candidate parameters  
-  			}
-  		if( j==23){
-  			cand[j] = exp( out[*npar * (i-1)+j] + jump[*npar * i + j] ) / ( 1.0 + exp( out[*npar * (i-1) + j] + jump[*npar * i + j] ) ); // logit transformation
-  			}
-  		}
-  	candLL=0.0; 					
-    funLL(cand, y, alphacomb, nObj, combin, tricomb, inhersim, &candLL, N, nTri, debug ); // get log likelihood of candidate values
-    accept = exp( candLL - oldLL ); // acceptance threshold   
-    *debug = candLL;
-    if ( unifs[i] < accept){
-    	//*debug = candLL;
-    		for( int j=0; j<*npar; j++ ){
-    			// out[*npar * i + j] = 0.0;
-    			out[*npar * i + j] = out[*npar * (i-1)+j] + jump[*npar * i + j]; // new candidate parameters untranformed
-	    		}
-	    	oldLL = candLL; // new loglikelihood to beat
-	 	}
-  	aLL[i] = oldLL; // archive log likelihood values
-	}
-	" 
-
-calMH <- signature( npar="integer", m="integer", jump="numeric", unifs="numeric", out="numeric", x="numeric", y="integer", alphacomb="integer", nObj="integer", combin="integer", tricomb="integer", inhersim="numeric", N="integer", nTri="integer", debug="numeric", aLL="numeric" )
-
-fitfns <- cfunction( list( funsimX = calevolSimL, funsearchTriArray=calArraySearch, funLL = LLt, funMH = calMH ), list( evolSimL, TriArrayFn, LLtriad, MHast ), language="C", convention=".C" )
-
-# function to operate sampler
-funMH <- fitfns[["funMH"]]
-
-# FUNCTION TO ORGANIZE RESULTS OF MCMC SAMPLES
-organize = function( mfit, model, inits, par.labels, sam ){ 
-	# Save results to a directory
-	res.folder = paste(getwd(),"/",model,"_",format(Sys.time(), "%b_%d_%Y"), sep="")
-	dir.create( path=res.folder)
-
-	# Analyze output
-	mfit$samples = matrix( mfit$out, ncol=npar,byrow=TRUE)
-	
-	nr = floor( sqrt( npar ) )
-	quartz( file=paste(res.folder,"/",model,"_SamplesPlot.pdf",sep=""), title = "Samples from Metropolis-Hastings", width=15, height=10, type="pdf" )
-	par( mfrow=c(nr,nr), mar=c(3,2,2,3) )
-	for( i in 1:dim(mfit$samples)[2] ) plot( mfit$samples[,i], type="l", main=par.labels[i], xlab="Sample #", ylab="" )
-	dev.off()
-	
-	quartz( file=paste(res.folder,"/",model,"_Densities.pdf",sep=""), title="Estimated Densities", width=10, height=10, type="pdf")
-	par( mfrow=c(nr,nr), mar=c(3,2,2,3)  )
-	for( i in 1:dim(mfit$samples)[2] ){
-		plot( density(mfit$samples[(sam/2):sam,i]), main=par.labels[i], xlab="parameter value", ylab="density" )
-	 	lines( y = c(0,1), x = rep(inits[i],2) )
-	 	}
-	dev.off()	 
-	
-	# Organize results into a table
-	ave = colMeans( mfit$samples )
-	lb = sapply( 1:dim(mfit$samples)[2], function(i) quantile( mfit$samples[,i], prob=0.05 ) )
-	ub = sapply( 1:dim(mfit$samples)[2], function(i) quantile( mfit$samples[,i], prob=0.975 ) )
-	restab = data.frame( ave, lb, ub, row.names=par.labels)
-	write.table( restab, file=paste(res.folder,"/res",model,".csv",sep=""), sep="," )
-
-	# Save fitted object
-	save( mfit, file=paste(res.folder,"/res",model,".rdata",sep="") )
-}
-
-	
