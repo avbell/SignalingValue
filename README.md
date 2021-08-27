@@ -1,5 +1,7 @@
 # SignalingValue
-Introduced here is a method to measuring social coordination and the signaling value of objects. Accompanies manuscript Bell (in press).
+Introduced here is a method to measuring social coordination and the signaling value of objects. Accompanies the paper:
+
+Bell, Adrian Viliami (2020). “A measure of social coordination and group signaling in the wild.” Evolutionary Human Sciences, 2, E34. doi:10.1017/ehs.2020.24
 
 The primary code is found in svBell2020.R and all other files are called from this script. To start, 
 1. Download all files to a single folder
