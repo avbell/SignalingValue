@@ -10,5 +10,3 @@ The primary code is found in svBell2020.R and all other files are called from th
 4. Install relevant packages as you run through the code.
 
 If you use any of this work please cite!
-
-Bell, Adrian Viliami. (in press) "A Measure of Social Coordination and Group Signaling in the Wild". Evolutionary Human Sciences.
